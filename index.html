@@ -16,7 +16,7 @@
 html,body{height:100%;background:var(--black);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;user-select:none;}
 .bg{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(255,106,0,0.15) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 90%,rgba(255,80,0,0.10) 0%,transparent 60%),#080808;}
 #app{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column;}
-.screen{display:none;flex:1;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:calc(var(--safe-top)+8px) 16px calc(65px + var(--safe-bottom));-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.screen{display:none;flex:1;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:calc(var(--safe-top)+12px) 16px 0;padding-bottom:calc(90px + var(--safe-bottom));-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .screen::-webkit-scrollbar{display:none;}
 .screen.active{display:flex;}
 .glass{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08);}
@@ -33,7 +33,7 @@ html,body{height:100%;background:var(--black);color:var(--text);font-family:'DM 
 .input::placeholder{color:var(--text-faint);}
 nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(8,8,8,0.88);backdrop-filter:blur(30px) saturate(2);-webkit-backdrop-filter:blur(30px) saturate(2);border-top:1px solid rgba(255,255,255,0.08);padding-bottom:var(--safe-bottom);}
 .nav-inner{display:flex;align-items:center;}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 8px;cursor:pointer;color:var(--text-faint);font-size:8px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;transition:color 0.2s;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;cursor:pointer;color:var(--text-faint);font-size:8px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;transition:color 0.2s;}
 .nav-item svg{width:20px;height:20px;}
 .nav-item.active{color:var(--orange);}
 .nav-item.active svg{filter:drop-shadow(0 0 6px var(--orange));}
@@ -162,7 +162,7 @@ input[type=file]{display:none;}
   <div class="quick-actions">
     <div class="quick-btn glass-orange" onclick="goTo('run')"><div class="quick-icon">🏃</div><div class="quick-label">Start Run</div><div class="quick-sub">Track your pace</div></div>
     <div class="quick-btn glass" onclick="goTo('food')"><div class="quick-icon">🍔</div><div class="quick-label">Scan Food</div><div class="quick-sub">Check macros</div></div>
-    <div class="quick-btn glass" onclick="goTo('face')"><div class="quick-icon">😎</div><div class="quick-label">Face Rate</div><div class="quick-sub">AI analysis</div></div>
+    <div class="quick-btn glass" onclick="goTo('face')"><div class="quick-icon">😎</div><div class="quick-label">Face Rate</div><div class="quick-sub">Brutal honesty</div></div>
     <div class="quick-btn glass" onclick="goTo('history')"><div class="quick-icon">📋</div><div class="quick-label">History</div><div class="quick-sub">All activity</div></div>
   </div>
   <div class="section-title">LAST RUN</div>
