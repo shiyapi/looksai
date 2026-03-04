@@ -1166,17 +1166,26 @@ nav {
       <div class="run-stat card"><div class="run-stat-val" id="run-pace">--:--</div><div class="run-stat-label">Pace/km</div></div>
     </div>
 
-    <div class="run-map-box fade-up-d2">
-      <div class="run-active-dot" id="run-dot"></div>
-      <div class="run-map-icon" id="run-map-icon">🗺️</div>
-      <div class="run-map-label" id="run-map-label">GPS activates on start</div>
+    <!-- LIVE MAP -->
+    <div style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;background:#111;border:1px solid var(--border)">
+      <canvas id="run-map-canvas" style="width:100%;display:block;height:200px"></canvas>
+      <div id="run-map-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+        <div style="font-size:28px">🗺️</div>
+        <div id="run-map-label" style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(242,237,230,0.3);text-align:center;padding:0 16px">GPS activates on start</div>
+      </div>
+      <div id="run-gps-dot" style="display:none;position:absolute;bottom:12px;right:12px;display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.6);padding:6px 10px;border-radius:20px">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange);animation:pulse 1.4s ease-in-out infinite"></div>
+        <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text-2)">LIVE</span>
+      </div>
     </div>
 
-    <div class="run-btn-group fade-up-d2">
-      <button class="run-main-btn state-start" id="run-main-btn" onclick="toggleRun()">Start</button>
+    <!-- BUTTONS - always visible -->
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="run-main-btn state-start" id="run-main-btn" onclick="toggleRun()" style="flex:1">Start</button>
+      <button id="run-end-btn" onclick="stopRun()" style="display:none;width:80px;padding:20px 0;border-radius:18px;border:1px solid rgba(255,59,59,0.35);background:rgba(255,59,59,0.1);color:#ff5555;font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer">End</button>
     </div>
 
-    <div class="run-extra card fade-up-d2">
+    <div class="run-extra card" style="margin-bottom:12px">
       <div class="run-extra-row">
         <div class="run-extra-label">Calories Burned</div>
         <div class="run-extra-val" id="run-cal">0 <span style="font-size:13px;color:var(--text-2);font-weight:600">kcal</span></div>
@@ -1188,10 +1197,13 @@ nav {
       </div>
     </div>
 
+    <!-- SAVE SECTION -->
     <div id="run-save-section" style="display:none;margin-bottom:14px">
       <div class="card" style="padding:18px;margin-bottom:10px" id="run-summary"></div>
+      <!-- ROUTE MAP PREVIEW -->
+      <canvas id="run-preview-canvas" style="width:100%;border-radius:14px;margin-bottom:10px;display:none;background:#111"></canvas>
       <div style="display:flex;gap:10px">
-        <button class="btn btn-primary btn-full" onclick="saveRun()">Save Run</button>
+        <button class="btn btn-primary btn-full" onclick="saveRun()">💾 Save Run</button>
         <button class="btn btn-ghost" style="min-width:90px" onclick="discardRun()">Discard</button>
       </div>
     </div>
@@ -1788,6 +1800,7 @@ window.resetFood = function() {
 // ---- RUN ----
 let runInterval=null, runSecs=0, runDist=0, runRunning=false, runPaused=false;
 let lastPos=null, watchId=null, speedSamples=[], pendingRun=null;
+let routeCoords = []; // stores {lat, lng} for map drawing
 
 window.toggleRun = function() {
   if (!runRunning) startRun();
@@ -1796,69 +1809,97 @@ window.toggleRun = function() {
 };
 
 function startRun() {
-  runRunning=true; runPaused=false; runSecs=0; runDist=0; lastPos=null; speedSamples=[]; pendingRun=null;
+  runRunning=true; runPaused=false; runSecs=0; runDist=0;
+  lastPos=null; speedSamples=[]; pendingRun=null; routeCoords=[];
   $('run-save-section').style.display = 'none';
-  updateRunDisplay();
-  runInterval = setInterval(() => { runSecs++; updateRunDisplay(); }, 1000);
+  $('run-end-btn').style.display = 'block';
   const btn = $('run-main-btn');
   btn.textContent = 'Pause'; btn.className = 'run-main-btn state-pause';
+  updateRunDisplay();
+  runInterval = setInterval(() => { runSecs++; updateRunDisplay(); }, 1000);
 
-  // Add END button
-  let endBtn = $('run-end-btn');
-  if (!endBtn) {
-    endBtn = document.createElement('button');
-    endBtn.id = 'run-end-btn'; endBtn.className = 'run-end-btn';
-    endBtn.textContent = 'End'; endBtn.onclick = stopRun;
-    btn.parentNode.appendChild(endBtn);
+  // Show live dot
+  $('run-gps-dot').style.display = 'flex';
+  $('run-map-overlay').style.display = 'none';
+
+  if (!navigator.geolocation) {
+    $('run-map-label').textContent = 'GPS not supported';
+    $('run-map-overlay').style.display = 'flex';
+    return;
   }
-  endBtn.style.display = 'block';
 
-  $('run-dot').style.display = 'block'; $('run-map-icon').style.display = 'none';
-
-  if (!navigator.geolocation) { $('run-map-label').textContent = 'GPS not supported'; return; }
-  $('run-map-label').textContent = 'Requesting location...';
   navigator.geolocation.getCurrentPosition(fp => {
-    lastPos = fp.coords; $('run-map-label').textContent = 'GPS locked ✓';
+    lastPos = fp.coords;
+    routeCoords.push({ lat: fp.coords.latitude, lng: fp.coords.longitude });
+    drawRouteMap(routeCoords, 'run-map-canvas');
+
     watchId = navigator.geolocation.watchPosition(pos => {
       if (lastPos && !runPaused) {
         const d = haversine(lastPos, pos.coords);
-        if (d < 0.05) runDist += d;
+        // Only count movement > 3m to filter GPS noise
+        if (d > 0.003 && d < 0.05) runDist += d;
         if (pos.coords.speed !== null && pos.coords.speed >= 0) speedSamples.push(pos.coords.speed * 3.6);
+        routeCoords.push({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        drawRouteMap(routeCoords, 'run-map-canvas');
       }
-      lastPos = pos.coords; updateRunDisplay();
-    }, () => { $('run-map-label').textContent = 'GPS lost'; }, { enableHighAccuracy:true, maximumAge:2000, timeout:10000 });
+      lastPos = pos.coords;
+      updateRunDisplay();
+    }, err => {
+      console.warn('GPS watch error', err);
+    }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
+
   }, err => {
     const m = { 1:'Location denied — check Settings', 2:'GPS unavailable', 3:'GPS timed out' };
     $('run-map-label').textContent = m[err.code] || 'GPS error';
-    $('run-dot').style.display = 'none';
+    $('run-map-overlay').style.display = 'flex';
+    $('run-gps-dot').style.display = 'none';
     toast('📍 ' + (m[err.code] || 'GPS error'));
-  }, { enableHighAccuracy:true, timeout:15000 });
+  }, { enableHighAccuracy: true, timeout: 15000 });
 }
 
 function pauseRun() {
   runPaused = true; clearInterval(runInterval);
-  const btn = $('run-main-btn'); btn.textContent = 'Resume'; btn.className = 'run-main-btn state-resume';
+  const btn = $('run-main-btn');
+  btn.textContent = 'Resume'; btn.className = 'run-main-btn state-resume';
 }
 
 function resumeRun() {
   runPaused = false;
   runInterval = setInterval(() => { runSecs++; updateRunDisplay(); }, 1000);
-  const btn = $('run-main-btn'); btn.textContent = 'Pause'; btn.className = 'run-main-btn state-pause';
+  const btn = $('run-main-btn');
+  btn.textContent = 'Pause'; btn.className = 'run-main-btn state-pause';
 }
 
-function stopRun() {
+window.stopRun = function() {
   if (!runRunning) return;
   clearInterval(runInterval);
-  if (watchId) navigator.geolocation.clearWatch(watchId);
+  if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
   runRunning = false; runPaused = false;
-  const endBtn = $('run-end-btn'); if (endBtn) endBtn.style.display = 'none';
-  const btn = $('run-main-btn'); btn.textContent = 'Start'; btn.className = 'run-main-btn state-start';
-  $('run-dot').style.display = 'none'; $('run-map-icon').style.display = 'block';
+
+  $('run-end-btn').style.display = 'none';
+  $('run-gps-dot').style.display = 'none';
+  $('run-map-overlay').style.display = 'flex';
   $('run-map-label').textContent = 'GPS activates on start';
 
-  if (runSecs > 5 && runDist > 0.01) {
-    const spd = speedSamples.length ? (speedSamples.reduce((a,b) => a+b, 0) / speedSamples.length).toFixed(1) : '0.0';
-    pendingRun = { date: new Date().toISOString(), distance: runDist, duration: fmtTime(runSecs), pace: fmtTime(runSecs/runDist), speed: spd, calories: Math.round(runDist * 65) };
+  const btn = $('run-main-btn');
+  btn.textContent = 'Start'; btn.className = 'run-main-btn state-start';
+
+  if (runSecs > 10 && runDist > 0.01) {
+    const spd = speedSamples.length
+      ? (speedSamples.reduce((a,b) => a+b,0) / speedSamples.length).toFixed(1)
+      : '0.0';
+    const savedCoords = [...routeCoords];
+
+    pendingRun = {
+      date: new Date().toISOString(),
+      distance: runDist,
+      duration: fmtTime(runSecs),
+      pace: fmtTime(runSecs / runDist),
+      speed: spd,
+      calories: Math.round(runDist * 65),
+      coords: savedCoords
+    };
+
     $('run-summary').innerHTML = `
       <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-2);margin-bottom:12px">Run complete — save it?</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap">
@@ -1867,53 +1908,175 @@ function stopRun() {
         <div><span style="font-size:30px;font-weight:800;letter-spacing:-1px">${fmtTime(runSecs/runDist)}</span><span style="font-size:11px;color:var(--text-2)"> /km</span></div>
         <div><span style="font-size:30px;font-weight:800;letter-spacing:-1px">${spd}</span><span style="font-size:11px;color:var(--text-2)"> km/h</span></div>
       </div>`;
+
+    // Draw route preview
+    if (savedCoords.length > 1) {
+      const pc = $('run-preview-canvas');
+      pc.style.display = 'block';
+      drawRouteMap(savedCoords, 'run-preview-canvas');
+    }
+
     $('run-save-section').style.display = 'block';
+  } else if (runSecs > 0) {
+    toast('Run too short to save');
   }
-  runSecs = 0; runDist = 0; lastPos = null; speedSamples = [];
+
+  runSecs = 0; runDist = 0; lastPos = null; speedSamples = []; routeCoords = [];
   updateRunDisplay();
+};
+
+// Draw Strava-style route on a canvas
+function drawRouteMap(coords, canvasId) {
+  if (coords.length < 2) return;
+  const canvas = $(canvasId);
+  if (!canvas) return;
+
+  // Set actual pixel dimensions
+  const W = canvas.offsetWidth || 340;
+  const H = canvasId === 'run-map-canvas' ? 200 : 160;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  // Dark background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Get bounds
+  const lats = coords.map(c => c.lat);
+  const lngs = coords.map(c => c.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+
+  const pad = 28;
+  const latRange = maxLat - minLat || 0.001;
+  const lngRange = maxLng - minLng || 0.001;
+
+  // Scale to fit with padding, preserving aspect
+  const scaleX = (W - pad*2) / lngRange;
+  const scaleY = (H - pad*2) / latRange;
+  const scale = Math.min(scaleX, scaleY);
+
+  const offsetX = (W - lngRange * scale) / 2;
+  const offsetY = (H - latRange * scale) / 2;
+
+  function project(c) {
+    return {
+      x: offsetX + (c.lng - minLng) * scale,
+      y: H - offsetY - (c.lat - minLat) * scale  // flip Y
+    };
+  }
+
+  // Grid lines (subtle)
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath(); ctx.moveTo(W * i/4, 0); ctx.lineTo(W * i/4, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H * i/4); ctx.lineTo(W, H * i/4); ctx.stroke();
+  }
+
+  // Route shadow/glow
+  ctx.beginPath();
+  coords.forEach((c, i) => {
+    const p = project(c);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  });
+  ctx.strokeStyle = 'rgba(255,85,0,0.25)';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Route line
+  ctx.beginPath();
+  coords.forEach((c, i) => {
+    const p = project(c);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  });
+  ctx.strokeStyle = '#ff5500';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Start dot (green)
+  const start = project(coords[0]);
+  ctx.beginPath();
+  ctx.arc(start.x, start.y, 5, 0, Math.PI*2);
+  ctx.fillStyle = '#00d68f';
+  ctx.fill();
+
+  // End dot (orange) - current position
+  const end = project(coords[coords.length-1]);
+  ctx.beginPath();
+  ctx.arc(end.x, end.y, 5, 0, Math.PI*2);
+  ctx.fillStyle = '#ff5500';
+  ctx.shadowColor = '#ff5500';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
 }
 
 function updateRunDisplay() {
   $('run-dist').textContent = runDist.toFixed(2);
   $('run-time').textContent = fmtTime(runSecs);
-  $('run-pace').textContent = runSecs > 0 && runDist > 0.01 ? fmtTime(runSecs / runDist) : '--:--';
+  $('run-pace').textContent = runSecs > 0 && runDist > 0.003 ? fmtTime(runSecs / runDist) : '--:--';
   $('run-cal').innerHTML = Math.round(runDist * 65) + ' <span style="font-size:13px;color:var(--text-2);font-weight:600">kcal</span>';
   const spd = speedSamples.length ? (speedSamples.reduce((a,b)=>a+b,0)/speedSamples.length).toFixed(1) : '0.0';
   $('run-speed').innerHTML = spd + ' <span style="font-size:13px;color:var(--text-2);font-weight:600">km/h</span>';
 }
 
 function haversine(p, c) {
-  const R = 6371, dLat = (c.latitude - p.latitude) * Math.PI/180, dLon = (c.longitude - p.longitude) * Math.PI/180;
+  const R = 6371;
+  const dLat = (c.latitude - p.latitude) * Math.PI/180;
+  const dLon = (c.longitude - p.longitude) * Math.PI/180;
   const a = Math.sin(dLat/2)**2 + Math.cos(p.latitude*Math.PI/180)*Math.cos(c.latitude*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 window.saveRun = function() {
   if (!pendingRun) return;
-  Store.saveRun(pendingRun); pendingRun = null;
+  Store.saveRun(pendingRun);
+  pendingRun = null;
   $('run-save-section').style.display = 'none';
-  toast('Run saved! 🎉'); updatePastRuns();
+  $('run-preview-canvas').style.display = 'none';
+  toast('Run saved! 🎉');
+  updatePastRuns();
 };
 
 window.discardRun = function() {
-  pendingRun = null; $('run-save-section').style.display = 'none'; toast('Run discarded');
+  pendingRun = null;
+  $('run-save-section').style.display = 'none';
+  $('run-preview-canvas').style.display = 'none';
+  toast('Run discarded');
 };
 
 function updatePastRuns() {
   const runs = Store.runs, el = $('past-runs-list');
   if (!runs.length) { el.innerHTML = '<div class="empty">No runs saved yet 🏃</div>'; return; }
-  el.innerHTML = runs.map(r => `
-    <div class="past-run-card card">
-      <div class="past-run-emoji">🏃</div>
-      <div class="past-run-info">
-        <div class="past-run-date">${fmtDate(r.date)}</div>
-        <div class="past-run-sub">${r.duration} · ${r.pace}/km · ${r.calories} kcal</div>
+  el.innerHTML = runs.map((r, i) => `
+    <div class="past-run-card card" style="flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:20px">🏃</div>
+        <div style="flex:1">
+          <div class="past-run-date">${fmtDate(r.date)}</div>
+          <div class="past-run-sub">${r.duration} · ${r.pace}/km · ${r.calories} kcal</div>
+        </div>
+        <div>
+          <div class="past-run-dist">${r.distance.toFixed(2)}</div>
+          <div class="past-run-unit">km</div>
+        </div>
       </div>
-      <div>
-        <div class="past-run-dist">${r.distance.toFixed(2)}</div>
-        <div class="past-run-unit">km</div>
-      </div>
+      ${r.coords && r.coords.length > 1 ? `<canvas id="past-map-${i}" style="width:100%;border-radius:10px;background:#111" height="100"></canvas>` : ''}
     </div>`).join('');
+
+  // Draw maps for past runs
+  runs.forEach((r, i) => {
+    if (r.coords && r.coords.length > 1) {
+      requestAnimationFrame(() => drawRouteMap(r.coords, `past-map-${i}`));
+    }
+  });
 }
 
 // ---- HISTORY ----
