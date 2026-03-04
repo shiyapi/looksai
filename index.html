@@ -100,6 +100,7 @@ input[type=file] { display: none; }
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* SCREENS */
@@ -110,8 +111,9 @@ input[type=file] { display: none; }
   overflow-y: auto;
   overflow-x: hidden;
   padding: calc(var(--safe-top) + 16px) 16px 0;
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
   -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 .screen.active { display: flex; }
 
@@ -688,23 +690,9 @@ nav {
 .macro-unit { font-size: 10px; color: var(--orange); font-weight: 700; }
 
 /* ===== PHOTO EDITOR ===== */
-.photo-editor {
-  display: none;
-  margin-bottom: 14px;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: #000;
-}
-.editor-canvas-wrap {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  background: #000;
-}
-#edit-canvas { max-width: 100%; display: block; touch-action: none; }
+
+
+
 .editor-toolbar {
   display: flex;
   gap: 6px;
@@ -712,56 +700,12 @@ nav {
   overflow-x: auto;
   background: rgba(0,0,0,0.8);
 }
-.edit-btn {
-  flex-shrink: 0;
-  padding: 8px 12px;
-  border-radius: 9px;
-  border: 1px solid var(--border-bright);
-  background: transparent;
-  color: var(--text-2);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.edit-btn.active, .edit-btn:active {
-  background: var(--orange-mid);
-  border-color: rgba(255,85,0,0.5);
-  color: var(--orange);
-}
-.edit-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: rgba(0,0,0,0.6);
-}
-.edit-slider-row label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-2);
-  width: 72px;
-  flex-shrink: 0;
-}
-.edit-slider-row input[type=range] { flex: 1; accent-color: var(--orange); }
-.edit-slider-val {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--orange);
-  width: 28px;
-  text-align: right;
-  font-weight: 700;
-}
-.editor-actions {
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px;
-  background: rgba(0,0,0,0.6);
-}
+
+
+
+
+
+
 
 /* ===== RUN ===== */
 .run-stats {
@@ -1162,35 +1106,7 @@ nav {
       <input type="file" id="food-input" accept="image/*" onchange="handleFoodImage(this)">
 
       <!-- PHOTO EDITOR -->
-      <div class="photo-editor" id="food-editor">
-        <div class="editor-canvas-wrap"><canvas id="edit-canvas"></canvas></div>
-        <div class="editor-toolbar">
-          <button class="edit-btn" onclick="rotatePhoto(-90)">↺ L</button>
-          <button class="edit-btn" onclick="rotatePhoto(90)">↻ R</button>
-          <button class="edit-btn" onclick="flipPhoto('h')">↔ Flip</button>
-          <button class="edit-btn" onclick="flipPhoto('v')">↕ Flip</button>
-          <button class="edit-btn" id="crop-btn" onclick="toggleCrop()">✂ Crop</button>
-        </div>
-        <div class="edit-slider-row">
-          <label>Brightness</label>
-          <input type="range" min="-100" max="100" value="0" id="sl-brightness" oninput="applyFilters()">
-          <span class="edit-slider-val" id="sv-brightness">0</span>
-        </div>
-        <div class="edit-slider-row">
-          <label>Contrast</label>
-          <input type="range" min="-100" max="100" value="0" id="sl-contrast" oninput="applyFilters()">
-          <span class="edit-slider-val" id="sv-contrast">0</span>
-        </div>
-        <div class="edit-slider-row">
-          <label>Saturation</label>
-          <input type="range" min="-100" max="100" value="0" id="sl-saturation" oninput="applyFilters()">
-          <span class="edit-slider-val" id="sv-saturation">0</span>
-        </div>
-        <div class="editor-actions">
-          <button class="btn btn-primary btn-full" onclick="confirmEdit()">Use This Photo</button>
-          <button class="btn btn-ghost" style="min-width:90px" onclick="cancelEdit()">Cancel</button>
-        </div>
-      </div>
+      
 
       <div class="loader" id="food-loader">
         <div class="spinner"></div>
@@ -1424,7 +1340,7 @@ nav {
 // ===== INLINE MODULE (no server needed — all imports inlined) =====
 
 // ---- STORE ----
-const GROQ_DEFAULT = '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';
+const GROQ_DEFAULT = '';
 
 const Auth = {
   getUser()  { try { return JSON.parse(localStorage.getItem('la_user')  || 'null'); } catch { return null; } },
@@ -1459,7 +1375,7 @@ const Auth = {
 
 const Store = {
   _key(n) { const u = Auth.getUser(); const p = u ? u.email.split('@')[0] : '_g'; return `la_${p}_${n}`; },
-  get apiKey() { return localStorage.getItem('la_apikey') || GROQ_DEFAULT; },
+  get apiKey() { return localStorage.getItem('la_apikey') || ''; },
   setApiKey(k) { localStorage.setItem('la_apikey', k); },
   get runs() { try { return JSON.parse(localStorage.getItem(this._key('runs')) || '[]'); } catch { return []; } },
   get foods() { try { return JSON.parse(localStorage.getItem(this._key('foods')) || '[]'); } catch { return []; } },
@@ -1700,18 +1616,18 @@ function updateDash() {
 
 // ---- FACE ----
 let pendingFace = null;
-window.handleFaceImage = function(input) {
+window.handleFaceImage = async function(input) {
   if (!input.files[0]) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    const src = e.target.result;
-    $('face-preview').src = src;
+  reader.onload = async e => {
+    const compressed = await compressImage(e.target.result, 800, 0.82);
+    $('face-preview').src = compressed;
     $('face-preview').style.display = 'block';
     $('face-icon').style.display = 'none';
     $('face-upload-text').style.display = 'none';
     $('face-result').style.display = 'none';
     $('face-save-row').style.display = 'none';
-    runFaceAnalysis(src);
+    runFaceAnalysis(compressed);
   };
   reader.readAsDataURL(input.files[0]);
 };
@@ -1719,7 +1635,8 @@ window.handleFaceImage = function(input) {
 async function runFaceAnalysis(imageData) {
   $('face-loader').classList.add('active');
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    if (!Store.apiKey) { toast('⚠️ Add your Groq API key in Settings first'); return; }
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + Store.apiKey },
       body: JSON.stringify({
@@ -1764,127 +1681,36 @@ window.resetFace = function() {
 };
 
 // ---- PHOTO EDITOR ----
-let editImg = null, editRot = 0, editFlipH = false, editFlipV = false;
-let cropMode = false, cropStart = null, cropRect = null;
 
-window.handleFoodImage = function(input) {
-  if (!input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
+
+function compressImage(dataUrl, maxWidth, quality) {
+  return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      editImg = img; editRot = 0; editFlipH = false; editFlipV = false; cropMode = false; cropRect = null;
-      resetSliders(); renderCanvas();
-      $('food-upload-zone').style.display = 'none';
-      $('food-editor').style.display = 'block';
-      $('food-result').style.display = 'none';
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(input.files[0]);
-};
-
-function resetSliders() {
-  ['brightness','contrast','saturation'].forEach(k => {
-    $('sl-' + k).value = 0; $('sv-' + k).textContent = 0;
+    img.src = dataUrl;
   });
 }
 
-function renderCanvas() {
-  if (!editImg) return;
-  const canvas = $('edit-canvas');
-  const maxW = canvas.parentElement.clientWidth || 360;
-  const rot = editRot % 180 !== 0;
-  const srcW = rot ? editImg.naturalHeight : editImg.naturalWidth;
-  const srcH = rot ? editImg.naturalWidth : editImg.naturalHeight;
-  const scale = Math.min(maxW / srcW, 300 / srcH, 1);
-  canvas.width = srcW * scale; canvas.height = srcH * scale;
-  const ctx = canvas.getContext('2d');
-  ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(editRot * Math.PI / 180);
-  ctx.scale(editFlipH ? -1 : 1, editFlipV ? -1 : 1);
-  const dw = rot ? srcH * scale : srcW * scale;
-  const dh = rot ? srcW * scale : srcH * scale;
-  const br = parseInt($('sl-brightness').value);
-  const co = parseInt($('sl-contrast').value);
-  const sa = parseInt($('sl-saturation').value);
-  ctx.filter = `brightness(${100+br}%) contrast(${100+co}%) saturate(${100+sa}%)`;
-  ctx.drawImage(editImg, -dw/2, -dh/2, dw, dh);
-  ctx.restore();
-  if (cropMode && cropRect) {
-    ctx.strokeStyle = 'rgba(255,85,0,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([5,3]);
-    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-    ctx.fillStyle = 'rgba(255,85,0,0.07)'; ctx.fillRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-  }
-}
-
-window.applyFilters = function() {
-  ['brightness','contrast','saturation'].forEach(k => $('sv-'+k).textContent = $('sl-'+k).value);
-  renderCanvas();
-};
-window.rotatePhoto = deg => { editRot = (editRot + deg + 360) % 360; renderCanvas(); };
-window.flipPhoto = axis => { if (axis==='h') editFlipH=!editFlipH; else editFlipV=!editFlipV; renderCanvas(); };
-window.toggleCrop = function() {
-  cropMode = !cropMode; cropRect = null;
-  $('crop-btn').classList.toggle('active', cropMode);
-  renderCanvas();
-  if (cropMode) toast('Drag on the image to crop');
-};
-
-const ec = document.getElementById('edit-canvas');
-function getCanvasPoint(e) {
-  const r = ec.getBoundingClientRect(), s = e.touches ? e.touches[0] : e;
-  return { x: s.clientX - r.left, y: s.clientY - r.top };
-}
-ec.addEventListener('mousedown', e => { if (cropMode) cropStart = getCanvasPoint(e); });
-ec.addEventListener('mousemove', e => {
-  if (!cropMode || !cropStart) return;
-  const p = getCanvasPoint(e);
-  cropRect = { x: Math.min(cropStart.x, p.x), y: Math.min(cropStart.y, p.y), w: Math.abs(p.x-cropStart.x), h: Math.abs(p.y-cropStart.y) };
-  renderCanvas();
-});
-ec.addEventListener('mouseup', () => { cropStart = null; });
-ec.addEventListener('touchstart', e => { if (cropMode) cropStart = getCanvasPoint(e); }, { passive: true });
-ec.addEventListener('touchmove', e => {
-  if (!cropMode || !cropStart) return;
-  const p = getCanvasPoint(e);
-  cropRect = { x: Math.min(cropStart.x, p.x), y: Math.min(cropStart.y, p.y), w: Math.abs(p.x-cropStart.x), h: Math.abs(p.y-cropStart.y) };
-  renderCanvas();
-}, { passive: true });
-ec.addEventListener('touchend', () => { cropStart = null; });
-
-window.confirmEdit = function() {
-  if (cropMode && cropRect && cropRect.w > 5 && cropRect.h > 5) {
-    const tmp = document.createElement('canvas');
-    tmp.width = cropRect.w; tmp.height = cropRect.h;
-    tmp.getContext('2d').drawImage(ec, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
-    const ni = new Image();
-    ni.onload = () => {
-      editImg = ni; editRot = 0; editFlipH = false; editFlipV = false;
-      cropMode = false; cropRect = null; $('crop-btn').classList.remove('active');
-      renderCanvas(); setTimeout(doConfirmEdit, 50);
-    };
-    ni.src = tmp.toDataURL();
-    return;
-  }
-  doConfirmEdit();
-};
-
-function doConfirmEdit() {
-  const url = $('edit-canvas').toDataURL('image/jpeg', 0.92);
-  $('food-preview').src = url; $('food-preview').style.display = 'block';
-  $('food-icon').style.display = 'none'; $('food-upload-text').style.display = 'none';
-  $('food-editor').style.display = 'none';
-  $('food-upload-zone').style.display = 'flex';
-  runFoodAnalysis(url);
-}
-
-window.cancelEdit = function() {
-  editImg = null;
-  $('food-editor').style.display = 'none';
-  $('food-upload-zone').style.display = 'flex';
-  $('food-input').value = '';
+window.handleFoodImage = async function(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const compressed = await compressImage(e.target.result, 800, 0.75);
+    $('food-preview').src = compressed;
+    $('food-preview').style.display = 'block';
+    $('food-icon').style.display = 'none';
+    $('food-upload-text').style.display = 'none';
+    $('food-result').style.display = 'none';
+    runFoodAnalysis(compressed);
+  };
+  reader.readAsDataURL(input.files[0]);
 };
 
 // ---- FOOD ----
@@ -1901,7 +1727,8 @@ window.switchFoodTab = function(tab) {
 async function runFoodAnalysis(imageData) {
   $('food-loader').classList.add('active');
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    if (!Store.apiKey) { toast('⚠️ Add your Groq API key in Settings first'); return; }
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + Store.apiKey },
       body: JSON.stringify({
@@ -1952,11 +1779,10 @@ window.saveManualFood = function() {
 };
 
 window.resetFood = function() {
-  pendingFood = null; editImg = null;
+  pendingFood = null;
   $('food-preview').style.display = 'none'; $('food-preview').src = '';
   $('food-icon').style.display = 'block'; $('food-upload-text').style.display = 'block';
-  $('food-result').style.display = 'none'; $('food-editor').style.display = 'none';
-  $('food-upload-zone').style.display = 'flex'; $('food-input').value = '';
+  $('food-result').style.display = 'none'; $('food-upload-zone').style.display = 'flex'; $('food-input').value = '';
 };
 
 // ---- RUN ----
@@ -2118,9 +1944,9 @@ function updateSettingsDisplay() {
   const user = Auth.getUser();
   $('settings-username').textContent = user ? `${user.name} (${user.email})` : '—';
   const key = Store.apiKey;
-  $('api-key-display').textContent = key.startsWith('gsk_') && key !== GROQ_DEFAULT
+  $('api-key-display').textContent = key && key.startsWith('gsk_')
     ? key.slice(0,8) + '••••' + key.slice(-4)
-    : 'Using default key';
+    : '⚠️ Not set — tap to add';
 }
 
 window.saveApiKey = function() {
