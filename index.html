@@ -11,7 +11,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg: #080808;
@@ -1821,6 +1820,7 @@ let leafletMap=null, routePolyline=null, currentMarker=null, startMarker=null;
 
 function initLeafletMap() {
   if (leafletMap) return; // already init
+  if (typeof L === 'undefined') { toast('Map loading, try again in a sec'); return; }
   leafletMap = L.map('run-leaflet-map', {
     zoomControl: false,
     attributionControl: false,
@@ -1953,9 +1953,20 @@ function startRun() {
   updateRunDisplay();
   runInterval=setInterval(()=>{ runSecs++; updateRunDisplay(); },1000);
 
-  // Init map
-  initLeafletMap();
-  resetLeafletMap();
+  // Init map — wait for Leaflet if not ready yet
+  if (typeof L !== 'undefined') {
+    initLeafletMap();
+    resetLeafletMap();
+  } else {
+    // Poll until ready (usually < 500ms)
+    const waitForL = setInterval(() => {
+      if (typeof L !== 'undefined') {
+        clearInterval(waitForL);
+        initLeafletMap();
+        resetLeafletMap();
+      }
+    }, 100);
+  }
 
   if (!navigator.geolocation) {
     $('run-map-label').textContent='GPS not supported';
@@ -2156,6 +2167,15 @@ if (Auth.isLoggedIn()) {
 } else {
   initAuth();
 }
+</script>
+<script>
+// Load Leaflet dynamically so it's guaranteed ready before any map init
+(function() {
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload = () => { window._leafletReady = true; };
+  document.head.appendChild(s);
+})();
 </script>
 </body>
 </html>
