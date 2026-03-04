@@ -30,7 +30,7 @@
   --green: #00d68f;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --nav-h: 48px;
+  --nav-h: 52px;
 }
 
 *, *::before, *::after {
@@ -321,13 +321,13 @@ nav {
   backdrop-filter: blur(32px) saturate(1.8);
   -webkit-backdrop-filter: blur(32px) saturate(1.8);
   border-top: 1px solid var(--border);
-  padding-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   height: var(--nav-h);
 }
 
 .nav-inner {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   height: var(--nav-h);
 }
 
@@ -345,7 +345,7 @@ nav {
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: color 0.2s;
-  padding: 4px 0;
+  padding: 8px 0 0;
   position: relative;
 }
 
