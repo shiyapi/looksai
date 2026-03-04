@@ -345,7 +345,7 @@ nav {
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: color 0.2s;
-  padding: 8px 0 0;
+  padding: 2px 0 0;
   position: relative;
 }
 
@@ -1154,6 +1154,14 @@ nav {
         <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:8px">Health Tips</div>
         <div style="font-size:13px;color:var(--text-2);line-height:1.65" id="food-tips"></div>
       </div>
+      <!-- EDIT FOOD -->
+      <div class="card" style="padding:16px;margin-bottom:10px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:8px">Tweak it</div>
+        <div style="display:flex;gap:8px">
+          <input class="input" type="text" id="food-edit-input" placeholder='e.g. "add lettuce, no cheese"' style="font-size:13px">
+          <button class="btn btn-primary" onclick="refineFoodResult()" style="min-width:64px;padding:14px 12px;flex-shrink:0">Go</button>
+        </div>
+      </div>
       <button class="btn btn-primary btn-full" id="food-save-btn" onclick="saveFood()" style="margin-bottom:10px">Save to History</button>
     </div>
 
@@ -1761,7 +1769,7 @@ async function runFoodAnalysis(imageData) {
         model: 'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens: 450,
         messages: [{ role: 'user', content: [
           { type: 'image_url', image_url: { url: imageData } },
-          { type: 'text', text: 'Analyze this food. Respond ONLY as valid JSON, no markdown:\n{"name":"Food name","calories":450,"protein":32,"carbs":45,"fat":12,"description":"Brief 1-sentence description.","tips":"1-2 short health tips."}\nAll numbers must be integers.' }
+          { type: 'text', text: 'You are a precise nutritionist. Analyze this food image carefully. Identify every ingredient and estimate realistic portion sizes visually. Use accurate USDA-level nutritional data. Do NOT round to neat numbers — be specific. Respond ONLY as valid JSON, no markdown:\n{"name":"Specific food name with key ingredients","calories":487,"protein":29,"carbs":52,"fat":18,"description":"Brief description including key ingredients and estimated portion.","tips":"1-2 specific health tips relevant to this meal."}\nAll numbers must be integers. Be accurate, not approximate.' }
         ]}]
       })
     });
@@ -1781,6 +1789,47 @@ async function runFoodAnalysis(imageData) {
   } catch(e) { toast('Error: ' + (e.message || 'AI failed')); }
   finally { $('food-loader').classList.remove('active'); }
 }
+
+window.refineFoodResult = async function() {
+  const edit = $('food-edit-input').value.trim();
+  if (!edit) { toast('Type what to change first'); return; }
+  if (!Store.apiKey) { toast('⚠️ Add your Groq API key in Settings first'); return; }
+  if (!pendingFood) return;
+
+  const btn = document.querySelector('#food-edit-input + button');
+  btn.textContent = '...'; btn.disabled = true;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + Store.apiKey },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens: 400,
+        messages: [{ role: 'user', content: `You are a precise nutritionist. Current food analysis: ${JSON.stringify(pendingFood)}
+User correction: "${edit}"
+Update the food name and accurately recalculate ALL macros based on the correction using USDA-level data. Be specific and accurate, not rounded. Respond ONLY as valid JSON, no markdown:
+{"name":"Updated specific name","calories":487,"protein":29,"carbs":52,"fat":18,"description":"Updated description with corrected ingredients.","tips":"1-2 relevant health tips."}
+All numbers must be integers.` }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const json = JSON.parse(data.choices[0].message.content.replace(/\`\`\`json|\`\`\`/g,'').trim());
+    pendingFood = { ...pendingFood, ...json };
+    $('food-name').textContent = json.name || pendingFood.name;
+    $('food-desc').textContent = json.description || '';
+    $('macro-cal').textContent = json.calories || '—';
+    $('macro-pro').textContent = json.protein || '—';
+    $('macro-carb').textContent = json.carbs || '—';
+    $('macro-fat').textContent = json.fat || '—';
+    $('food-tips').textContent = json.tips || '';
+    $('food-edit-input').value = '';
+    $('food-save-btn').textContent = 'Save to History';
+    $('food-save-btn').disabled = false;
+    toast('Updated! ✅');
+  } catch(e) { toast('Error: ' + (e.message || 'failed')); }
+  finally { btn.textContent = 'Go'; btn.disabled = false; }
+};
 
 window.saveFood = function() {
   if (!pendingFood) return;
